@@ -1,0 +1,1 @@
+enum ApplianceType { tv, ac }

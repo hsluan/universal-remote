@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "source": "IRDB (github.com/probonopd/irdb), codes/<Brand>/TV/<device>,<subdevice>.csv",
+  "notes": "A button value is the IRDB function number for the code set's protocol/device/subdevice; an object overrides device/subdevice for that button. TCL's only IRDB set (15,-1) uses RCA-38, which has no encoder yet.",
+  "brands": [
+    {
+      "brand": "Samsung",
+      "codeSets": [
+        {
+          "id": "samsung_7_7",
+          "label": "Samsung TV",
+          "protocol": "samsung",
+          "device": 7,
+          "subdevice": 7,
+          "buttons": {
+            "power": 2, "vol_up": 7, "vol_down": 11, "ch_up": 18, "ch_down": 16, "mute": 15,
+            "up": 96, "down": 97, "left": 101, "right": 98, "ok": 104, "back": 88,
+            "home": 121, "menu": 26, "source": 1,
+            "digit_0": 17, "digit_1": 4, "digit_2": 5, "digit_3": 6, "digit_4": 8,
+            "digit_5": 9, "digit_6": 10, "digit_7": 12, "digit_8": 13, "digit_9": 14
+          }
+        }
+      ]
+    },
+    {
+      "brand": "LG",
+      "codeSets": [
+        {
+          "id": "lg_4",
+          "label": "LG TV",
+          "protocol": "nec",
+          "device": 4,
+          "buttons": {
+            "power": 8, "vol_up": 2, "vol_down": 3, "ch_up": 0, "ch_down": 1, "mute": 9,
+            "up": 64, "down": 65, "left": 7, "right": 6, "ok": 68, "back": 40,
+            "menu": 67, "source": 11,
+            "digit_0": 16, "digit_1": 17, "digit_2": 18, "digit_3": 19, "digit_4": 20,
+            "digit_5": 21, "digit_6": 22, "digit_7": 23, "digit_8": 24, "digit_9": 25
+          }
+        }
+      ]
+    },
+    {
+      "brand": "Sony",
+      "codeSets": [
+        {
+          "id": "sony_1",
+          "label": "Sony TV",
+          "protocol": "sony12",
+          "device": 1,
+          "buttons": {
+            "power": 21, "vol_up": 18, "vol_down": 19, "ch_up": 16, "ch_down": 17, "mute": 20,
+            "up": 116, "down": 117, "left": 52, "right": 51, "ok": 101, "back": 99,
+            "menu": 96, "source": 37,
+            "digit_0": 9, "digit_1": 0, "digit_2": 1, "digit_3": 2, "digit_4": 3,
+            "digit_5": 4, "digit_6": 5, "digit_7": 6, "digit_8": 7, "digit_9": 8
+          }
+        }
+      ]
+    },
+    {
+      "brand": "Panasonic",
+      "codeSets": [
+        {
+          "id": "panasonic_128_0",
+          "label": "Panasonic TV",
+          "protocol": "panasonic",
+          "device": 128,
+          "subdevice": 0,
+          "buttons": {
+            "power": 61, "vol_up": 32, "vol_down": 33, "ch_up": 52, "ch_down": 53, "mute": 50,
+            "up": 74, "down": 75, "left": 78, "right": 79, "ok": 73, "back": 212,
+            "home": { "device": 128, "subdevice": 9, "function": 149 },
+            "menu": 82, "source": 5,
+            "digit_0": 25, "digit_1": 16, "digit_2": 17, "digit_3": 18, "digit_4": 19,
+            "digit_5": 20, "digit_6": 21, "digit_7": 22, "digit_8": 23, "digit_9": 24
+          }
+        }
+      ]
+    },
+    {
+      "brand": "Toshiba",
+      "codeSets": [
+        {
+          "id": "toshiba_64",
+          "label": "Toshiba TV",
+          "protocol": "nec",
+          "device": 64,
+          "buttons": {
+            "power": 18, "vol_up": 26, "vol_down": 30, "ch_up": 27, "ch_down": 31, "mute": 16,
+            "back": 88, "menu": 128, "source": 15,
+            "digit_0": 0, "digit_1": 1, "digit_2": 2, "digit_3": 3, "digit_4": 4,
+            "digit_5": 5, "digit_6": 6, "digit_7": 7, "digit_8": 8, "digit_9": 9
+          }
+        }
+      ]
+    }
+  ]
+}

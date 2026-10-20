@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "notes": "codes: AC encoder ids known for the brand (from IRremoteESP8266 brand lists), most likely first; an empty list makes the search try every code. Casper uses Electra (verified against SmartIR captures of the SC-09FS32 remote). rank: approximate popularity in Vietnam, drives the 'Suggested' tiles.",
+  "brands": [
+    { "id": "daikin", "name": "Daikin", "rank": 1, "codes": ["daikin"] },
+    { "id": "panasonic", "name": "Panasonic", "rank": 2, "codes": ["panasonic_dke", "panasonic_jke"] },
+    { "id": "lg", "name": "LG", "rank": 3, "codes": ["lg2", "lg"] },
+    { "id": "samsung", "name": "Samsung", "rank": 4, "codes": ["samsung_ac"] },
+    { "id": "casper", "name": "Casper", "rank": 5, "codes": ["electra"] },
+    { "id": "toshiba", "name": "Toshiba", "rank": 6, "codes": ["toshiba_ac", "coolix"] },
+    { "id": "mitsubishi_electric", "name": "Mitsubishi Electric", "rank": 7, "codes": ["mitsubishi_ac"] },
+    { "id": "gree", "name": "Gree", "rank": 8, "codes": ["gree_yaw1f", "gree_ybofb"] },
+    { "id": "midea", "name": "Midea", "rank": 9, "codes": ["coolix", "midea"] },
+    { "id": "sharp", "name": "Sharp", "codes": [] },
+    { "id": "aqua", "name": "Aqua", "codes": [] },
+    { "id": "funiki", "name": "Funiki", "codes": [] },
+    { "id": "nagakawa", "name": "Nagakawa", "codes": [] },
+    { "id": "reetech", "name": "Reetech", "codes": [] },
+    { "id": "electrolux", "name": "Electrolux", "codes": ["electra"] },
+    { "id": "hitachi", "name": "Hitachi", "codes": [] },
+    { "id": "carrier", "name": "Carrier", "codes": ["toshiba_ac"] },
+    { "id": "sumikura", "name": "Sumikura", "codes": [] },
+    { "id": "comfee", "name": "Comfee", "codes": ["midea", "coolix"] },
+    { "id": "beko", "name": "Beko", "codes": ["coolix"] },
+    { "id": "tcl", "name": "TCL", "codes": [] },
+    { "id": "mitsubishi_heavy", "name": "Mitsubishi Heavy", "codes": [] },
+    { "id": "bosch", "name": "Bosch", "codes": ["coolix"] },
+    { "id": "aux", "name": "AUX", "codes": ["electra"] },
+    { "id": "general_electric", "name": "General Electric", "codes": ["lg"] }
+  ]
+}
