@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:universal_remote/domain/encoders/ac/ac_protocol_encoder.dart';
 import 'package:universal_remote/domain/encoders/ac/coolix_ac_encoder.dart';
 import 'package:universal_remote/domain/encoders/ac/lg_ac_encoder.dart';
 import 'package:universal_remote/domain/models/ac_state.dart';
@@ -32,8 +33,14 @@ void main() {
 
     test('swing change appends the swing command', () {
       const before = AcState();
-      final p = lg2.encode(before.copyWith(swingVertical: true), previous: before).pattern;
-      expect(p.length, (2 + 56 + 2) + (2 + 56 + 1));
+      final packet = lg2.encode(before.copyWith(swingVertical: true), previous: before);
+      expect(packet.pattern.length, (2 + 56 + 2) + (2 + 56 + 1));
+      expect(packet.name, 'LG (AKB remotes) on + swing on');
+      expect(lg.encode(before.copyWith(swingVertical: true), previous: before).name, 'LG (6711A remotes) on + swing toggle');
+    });
+
+    test('frame is the command as 4 bytes', () {
+      expect(hexBytes(lg.buildFrame(const AcState(mode: AcMode.cool, temperature: 25, fanSpeed: AcFanSpeed.high))), '08 80 0a 4e');
     });
   });
 
@@ -66,6 +73,11 @@ void main() {
       final p = encoder.encode(before.copyWith(swingVertical: true, turbo: true), previous: before);
       expect(p.pattern.length, 200 * 3 - 1);
       expect(p.totalDurationMicros, lessThan(2000000));
+      expect(p.name, 'Coolix (Midea-made units) on + swing toggle + turbo toggle');
+    });
+
+    test('frame is the command as 3 bytes', () {
+      expect(hexBytes(encoder.buildFrame(const AcState(mode: AcMode.cool, temperature: 24))), 'b2 bf 40');
     });
   });
 }

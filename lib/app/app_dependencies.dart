@@ -8,6 +8,8 @@ import '../domain/encoders/ac/standard_ac_encoders.dart';
 import '../domain/models/ac_device.dart';
 import '../domain/repositories/ac_brand_repository.dart';
 import '../domain/repositories/ac_device_repository.dart';
+import '../domain/services/ac_send_queue.dart';
+import '../domain/services/ir_send_log.dart';
 import '../domain/services/ir_transmitter.dart';
 import '../domain/use_cases/get_hardware_status_use_case.dart';
 import '../domain/use_cases/transmit_ac_state_use_case.dart';
@@ -24,9 +26,12 @@ class AppDependencies {
     required this.acDevices,
     required this.acBrands,
     required this.acRegistry,
-  })  : getHardwareStatus = GetHardwareStatusUseCase(transmitter: transmitter),
-        transmitPacket = TransmitIrPacketUseCase(transmitter: transmitter) {
-    transmitAcState = TransmitAcStateUseCase(registry: acRegistry, transmitPacket: transmitPacket);
+    IrSendLog? sendLog,
+  })  : sendLog = sendLog ?? IrSendLog(),
+        getHardwareStatus = GetHardwareStatusUseCase(transmitter: transmitter) {
+    transmitPacket = TransmitIrPacketUseCase(transmitter: transmitter, log: this.sendLog);
+    transmitAcState = TransmitAcStateUseCase(transmitPacket: transmitPacket);
+    acSendQueue = AcSendQueue(registry: acRegistry, transmitAcState: transmitAcState, repository: acDevices);
   }
 
   /// Production wiring: Android IR bridge, shared preferences, bundled catalog.
@@ -43,14 +48,17 @@ class AppDependencies {
   final AcDeviceRepository acDevices;
   final AcBrandRepository acBrands;
   final AcEncoderRegistry acRegistry;
+  final IrSendLog sendLog;
   final GetHardwareStatusUseCase getHardwareStatus;
-  final TransmitIrPacketUseCase transmitPacket;
+  late final TransmitIrPacketUseCase transmitPacket;
   late final TransmitAcStateUseCase transmitAcState;
+
+  /// The one path to paired ACs: shared by every screen so sends never overlap.
+  late final AcSendQueue acSendQueue;
 
   HomeViewModel createHomeViewModel() => HomeViewModel(
         repository: acDevices,
-        registry: acRegistry,
-        transmitAcState: transmitAcState,
+        sendQueue: acSendQueue,
         getHardwareStatus: getHardwareStatus,
       );
 
@@ -65,11 +73,12 @@ class AppDependencies {
         device: device,
         registry: acRegistry,
         repository: acDevices,
-        transmitAcState: transmitAcState,
+        sendQueue: acSendQueue,
       );
 
   DiagnosticsViewModel createDiagnosticsViewModel() => DiagnosticsViewModel(
         getHardwareStatusUseCase: getHardwareStatus,
         transmitIrPacketUseCase: transmitPacket,
+        sendLog: sendLog,
       );
 }

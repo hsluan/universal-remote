@@ -16,7 +16,17 @@ class FakeTransmitter implements IrTransmitter {
   /// When set, [transmit] throws this platform error.
   String? failWithCode;
 
+  /// Runs inside every [transmit] before it completes: await something to keep the
+  /// send in flight, or throw to make this one transmission fail.
+  Future<void> Function(IrPacket packet)? onTransmit;
+
+  /// Packets that went out, in order.
   final List<IrPacket> sent = [];
+
+  int _inFlight = 0;
+
+  /// Most transmissions ever in flight at the same time.
+  int maxInFlight = 0;
 
   @override
   Future<bool> hasIrEmitter() async => hasEmitter;
@@ -27,9 +37,17 @@ class FakeTransmitter implements IrTransmitter {
 
   @override
   Future<void> transmit(IrPacket packet) async {
-    final code = failWithCode;
-    if (code != null) throw PlatformException(code: code);
-    sent.add(packet);
+    _inFlight++;
+    if (_inFlight > maxInFlight) maxInFlight = _inFlight;
+    try {
+      final hook = onTransmit;
+      if (hook != null) await hook(packet);
+      final code = failWithCode;
+      if (code != null) throw PlatformException(code: code);
+      sent.add(packet);
+    } finally {
+      _inFlight--;
+    }
   }
 }
 
@@ -49,6 +67,13 @@ class InMemoryAcDeviceRepository implements AcDeviceRepository {
     } else {
       devices.add(device);
     }
+  }
+
+  @override
+  Future<AcDevice?> update(String id, AcDevice Function(AcDevice current) change) async {
+    final index = devices.indexWhere((d) => d.id == id);
+    if (index < 0) return null;
+    return devices[index] = change(devices[index]);
   }
 
   @override

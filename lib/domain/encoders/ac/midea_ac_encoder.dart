@@ -71,12 +71,19 @@ class MideaAcEncoder implements AcFrameEncoder {
   IrPacket encode(AcState state, {AcState? previous}) {
     final normalized = capabilities.normalize(state);
     final train = PulseTrain();
+    final extras = <String>[];
     _sendMessage(train, buildFrame(normalized));
     if (previous != null && normalized.isPowerOn) {
-      if (previous.swingVertical != normalized.swingVertical) _sendMessage(train, toggleSwingV);
-      if (previous.turbo != normalized.turbo) _sendMessage(train, toggleTurbo);
+      if (previous.swingVertical != normalized.swingVertical) {
+        _sendMessage(train, toggleSwingV);
+        extras.add('swing toggle');
+      }
+      if (previous.turbo != normalized.turbo) {
+        _sendMessage(train, toggleTurbo);
+        extras.add('turbo toggle');
+      }
     }
-    return IrPacket(frequency: frequency, pattern: train.build(), name: '$label ${state.isPowerOn ? 'on' : 'off'}');
+    return IrPacket(frequency: frequency, pattern: train.build(), name: packetName(label, normalized, extras));
   }
 
   static void _sendMessage(PulseTrain train, List<int> bytes) {

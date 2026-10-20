@@ -114,7 +114,8 @@ void main() {
 
   testWidgets('remote: power, temperature debounce and mode', (tester) async {
     const device = AcDevice(id: 'x', name: 'Living AC', brandName: 'Daikin', codeId: 'daikin', room: 'Living room');
-    await pumpApp(tester, build(initial: [device]));
+    final deps = build(initial: [device]);
+    await pumpApp(tester, deps);
 
     expect(find.text('Living AC'), findsOneWidget);
     expect(find.text('Living room · Off'), findsOneWidget);
@@ -142,6 +143,11 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Living room · Heat · 27°C · Fan auto'), findsOneWidget);
+
+    final record = deps.sendLog.records.first;
+    expect(record.source, 'Living AC');
+    expect(record.frameHex, startsWith('11 da 27'));
+    expect(deps.sendLog.records, hasLength(3));
   });
 
   testWidgets('home shows a banner and an error when the phone has no IR blaster', (tester) async {
@@ -176,5 +182,12 @@ void main() {
     expect(packet.frequency, 38000);
     expect(packet.pattern.sublist(0, 2), [4480, 4480]);
     expect(packet.pattern.length, 67);
+
+    // The send log lists it.
+    expect(find.text('IR send log'), findsOneWidget);
+    final entry = find.textContaining(RegExp(r'^\d\d:\d\d:\d\d  Diagnostics$'));
+    await tester.ensureVisible(entry);
+    expect(entry, findsOneWidget);
+    expect(find.textContaining('67 pulses'), findsOneWidget);
   });
 }

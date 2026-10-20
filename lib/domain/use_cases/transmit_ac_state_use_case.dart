@@ -1,29 +1,34 @@
-import '../encoders/ac/ac_encoder_registry.dart';
 import '../encoders/ac/ac_protocol_encoder.dart';
 import '../models/ac_state.dart';
 import '../models/ir_packet.dart';
 import 'transmit_ir_packet_use_case.dart';
 
-/// Encodes a full AC state with the device's code and emits it.
+/// Encodes a full AC state with a code and emits it.
+///
+/// Sends to a paired AC go through `AcSendQueue`, which serializes them and
+/// tracks the state the AC last received; this use case is the single step below it.
 class TransmitAcStateUseCase {
-  const TransmitAcStateUseCase({required this.registry, required this.transmitPacket});
+  const TransmitAcStateUseCase({required this.transmitPacket});
 
-  final AcEncoderRegistry registry;
   final TransmitIrPacketUseCase transmitPacket;
 
-  /// Returns the packet that was sent (for logs and diagnostics).
-  /// [previous] is the last state sent to the device, if known.
-  Future<IrPacket> execute(String codeId, AcState state, {AcState? previous}) {
-    return executeWith(registry.require(codeId), state, previous: previous);
-  }
-
-  Future<IrPacket> executeWith(AcProtocolEncoder encoder, AcState state, {AcState? previous}) async {
+  /// [previous] is the last state the AC received, if known (toggle commands are
+  /// derived from it). [source] labels the send log entry. Returns the packet sent.
+  Future<IrPacket> execute(
+    AcProtocolEncoder encoder,
+    AcState state, {
+    AcState? previous,
+    String source = 'AC',
+  }) async {
     final caps = encoder.capabilities;
-    final packet = encoder.encode(
-      caps.normalize(state),
-      previous: previous == null ? null : caps.normalize(previous),
+    final target = caps.normalize(state);
+    final packet = encoder.encode(target, previous: previous == null ? null : caps.normalize(previous));
+    await transmitPacket.execute(
+      packet,
+      source: source,
+      description: '${packet.name} · $target',
+      frameHex: encoder is AcFrameEncoder ? hexBytes(encoder.buildFrame(target)) : null,
     );
-    await transmitPacket.execute(packet);
     return packet;
   }
 }

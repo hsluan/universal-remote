@@ -8,7 +8,7 @@ import '../../../../domain/encoders/ac/ac_protocol_encoder.dart';
 import '../../../../domain/models/ac_device.dart';
 import '../../../../domain/models/ac_state.dart';
 import '../../../../domain/repositories/ac_device_repository.dart';
-import '../../../../domain/use_cases/transmit_ac_state_use_case.dart';
+import '../../../../domain/services/ac_send_queue.dart';
 import '../../../core/transmit_error.dart';
 
 class AcRemoteViewModel extends ChangeNotifier {
@@ -16,16 +16,18 @@ class AcRemoteViewModel extends ChangeNotifier {
     required AcDevice device,
     required AcEncoderRegistry registry,
     required this.repository,
-    required this.transmitAcState,
+    required this.sendQueue,
     this.temperatureDebounce = const Duration(milliseconds: 350),
   })  : _device = device,
         encoder = registry.require(device.codeId) {
-    _state = encoder.capabilities.normalize(device.state);
-    _lastSent = _state;
+    _state = encoder.capabilities.normalize(sendQueue.deliveredState(device));
   }
 
   final AcDeviceRepository repository;
-  final TransmitAcStateUseCase transmitAcState;
+
+  /// Delivers states and tracks what the AC received; it also saves the delivered state.
+  final AcSendQueue sendQueue;
+
   final AcProtocolEncoder encoder;
 
   /// Rapid +/- taps are coalesced into one IR frame sent after this pause.
@@ -34,20 +36,19 @@ class AcRemoteViewModel extends ChangeNotifier {
   AcDevice _device;
   AcDevice get device => _device;
 
+  /// The state shown and requested; the AC gets it once the queue delivers it.
   late AcState _state;
   AcState get state => _state;
 
-  /// Last state the AC received, for protocols that send changes as toggles.
-  late AcState _lastSent;
-
   AcCapabilities get capabilities => encoder.capabilities;
 
-  bool _isSending = false;
-  bool get isSending => _isSending;
+  int _inFlight = 0;
+  bool get isSending => _inFlight > 0;
 
-  /// Increments on every successful transmission; the view flashes its IR indicator on change.
+  /// Increments once per delivered transmission; the view flashes its IR indicator on change.
   int _sentCount = 0;
   int get sentCount => _sentCount;
+  int _lastSequence = 0;
 
   String? _error;
   String? get error => _error;
@@ -94,10 +95,14 @@ class AcRemoteViewModel extends ChangeNotifier {
     if (trimmed.isEmpty) return;
     _device = _device.copyWith(name: trimmed);
     notifyListeners();
-    await repository.save(_device);
+    // A partial update: a state the queue saves at the same time is kept.
+    await repository.update(_device.id, (stored) => stored.copyWith(name: trimmed));
   }
 
-  Future<void> delete() => repository.delete(_device.id);
+  Future<void> delete() async {
+    sendQueue.forget(_device.id);
+    await repository.delete(_device.id);
+  }
 
   void clearError() {
     if (_error == null) return;
@@ -123,23 +128,23 @@ class AcRemoteViewModel extends ChangeNotifier {
 
   Future<void> _send() async {
     _debounce?.cancel();
-    final sent = _state;
-    _isSending = true;
+    _inFlight++;
     notifyListeners();
-    try {
-      await transmitAcState.executeWith(encoder, sent, previous: _lastSent);
-      _lastSent = sent;
-      _sentCount++;
-      _device = _device.copyWith(state: sent);
-      await repository.save(_device);
-    } catch (e) {
-      _error = describeTransmitError(e);
-    } finally {
-      _isSending = false;
-      if (!_disposed) notifyListeners();
+    final result = await sendQueue.send(_device, _state);
+    _inFlight--;
+    if (result.delivered) {
+      // Requests merged into one transmission share its sequence: count it once.
+      if (result.sequence != _lastSequence) {
+        _lastSequence = result.sequence;
+        _sentCount++;
+      }
+      _device = _device.copyWith(state: result.state);
+      _error = null;
+    } else {
+      _error = describeTransmitError(result.error!);
     }
+    notifyListeners();
   }
-
 
   @override
   void notifyListeners() {

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../../../domain/models/ir_send_record.dart';
 import '../../../core/theme/app_colors.dart';
 import '../view_models/diagnostics_view_model.dart';
 
@@ -25,6 +28,7 @@ class _DiagnosticsViewState extends State<DiagnosticsView> {
   void dispose() {
     _addressController.dispose();
     _commandController.dispose();
+    widget.viewModel.dispose();
     super.dispose();
   }
 
@@ -321,6 +325,7 @@ class _DiagnosticsViewState extends State<DiagnosticsView> {
   }
 
   Widget _buildLogsCard(DiagnosticsViewModel vm) {
+    final records = vm.records;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -328,22 +333,26 @@ class _DiagnosticsViewState extends State<DiagnosticsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Hardware & Signal Logs',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                ),
-                if (vm.logs.isNotEmpty)
-                  TextButton(
-                    onPressed: vm.clearLogs,
-                    child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                const Expanded(
+                  child: Text(
+                    'IR send log',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                   ),
+                ),
+                if (records.isNotEmpty) ...[
+                  TextButton(onPressed: () => _copyLog(vm), child: const Text('Copy', style: TextStyle(fontSize: 12))),
+                  TextButton(onPressed: vm.clearLogs, child: const Text('Clear', style: TextStyle(fontSize: 12))),
+                ],
               ],
             ),
-            const SizedBox(height: 8),
+            const Text(
+              'Every transmission of the app, newest first. When an AC does not react, copy this into the bug report.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 10),
             Container(
-              height: 180,
+              height: 260,
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -351,33 +360,79 @@ class _DiagnosticsViewState extends State<DiagnosticsView> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.surfaceBorder),
               ),
-              child: vm.logs.isEmpty
+              child: records.isEmpty
                   ? const Center(
                       child: Text(
-                        'No events recorded yet.',
+                        'No transmissions yet.',
                         style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                       ),
                     )
-                  : ListView.builder(
-                      itemCount: vm.logs.length,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Text(
-                            vm.logs[index],
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        );
-                      },
+                  : ListView.separated(
+                      itemCount: records.length,
+                      separatorBuilder: (_, _) => const Divider(height: 14, color: AppColors.surfaceBorder),
+                      itemBuilder: (context, index) => _SendLogEntry(record: records[index]),
                     ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _copyLog(DiagnosticsViewModel vm) async {
+    await Clipboard.setData(ClipboardData(text: vm.exportLog()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Send log copied')));
+  }
+}
+
+class _SendLogEntry extends StatelessWidget {
+  const _SendLogEntry({required this.record});
+
+  final IrSendRecord record;
+
+  static const _mono = TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppColors.textSecondary);
+
+  @override
+  Widget build(BuildContext context) {
+    final r = record;
+    final time = r.time.toIso8601String().substring(11, 19);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(
+            r.ok ? Icons.check_circle_rounded : Icons.error_rounded,
+            size: 14,
+            color: r.ok ? AppColors.success : AppColors.error,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: SelectionArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$time  ${r.source}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 2),
+                Text(r.description, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                if (r.frameHex != null) Text(r.frameHex!, style: _mono),
+                Text(
+                  '${(r.frequency / 1000).toStringAsFixed(1)} kHz · ${r.pulses} pulses · '
+                  '${(r.patternMicros / 1000).toStringAsFixed(0)} ms pattern · ${r.elapsed.inMilliseconds} ms call',
+                  style: _mono,
+                ),
+                if (r.error != null)
+                  Text(r.error!, style: const TextStyle(fontSize: 11, color: AppColors.error)),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

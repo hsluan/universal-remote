@@ -9,7 +9,7 @@ import 'ac_protocol_encoder.dart';
 /// Toshiba and Comfee lines). Each byte is sent MSB first followed by its
 /// inverse; the frame is sent twice. Power off, swing and turbo are fixed
 /// commands; swing and turbo are toggles appended when they changed.
-class CoolixAcEncoder implements AcProtocolEncoder {
+class CoolixAcEncoder implements AcFrameEncoder {
   const CoolixAcEncoder();
 
   static const int frequency = 38000;
@@ -75,16 +75,30 @@ class CoolixAcEncoder implements AcProtocolEncoder {
     return (0xB << 20) | (0x2 << 16) | (fan << 13) | (_sensorIgnore << 8) | (temperatureCode << 4) | (mode << 2);
   }
 
+  /// The 24-bit state command as 3 bytes, most significant first (each is sent with its inverse).
+  @override
+  List<int> buildFrame(AcState state) {
+    final command = buildCommand(state);
+    return [(command >> 16) & 0xFF, (command >> 8) & 0xFF, command & 0xFF];
+  }
+
   @override
   IrPacket encode(AcState state, {AcState? previous}) {
     final normalized = capabilities.normalize(state);
     final train = PulseTrain();
+    final extras = <String>[];
     _sendCommand(train, buildCommand(normalized));
     if (normalized.isPowerOn && previous != null) {
-      if (previous.swingVertical != normalized.swingVertical) _sendCommand(train, swingToggle);
-      if (previous.turbo != normalized.turbo) _sendCommand(train, turboToggle);
+      if (previous.swingVertical != normalized.swingVertical) {
+        _sendCommand(train, swingToggle);
+        extras.add('swing toggle');
+      }
+      if (previous.turbo != normalized.turbo) {
+        _sendCommand(train, turboToggle);
+        extras.add('turbo toggle');
+      }
     }
-    return IrPacket(frequency: frequency, pattern: train.build(), name: '$label ${state.isPowerOn ? 'on' : 'off'}');
+    return IrPacket(frequency: frequency, pattern: train.build(), name: packetName(label, normalized, extras));
   }
 
   static void _sendCommand(PulseTrain train, int command) {

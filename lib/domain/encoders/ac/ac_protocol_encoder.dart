@@ -80,6 +80,10 @@ int reverseBits(int value, [int bits = 8]) {
   return result;
 }
 
+/// Packet name for the send log, e.g. "Midea on + swing toggle".
+String packetName(String label, AcState state, [List<String> extras = const []]) =>
+    [('$label ${state.isPowerOn ? 'on' : 'off'}'), ...extras].join(' + ');
+
 /// Lowercase hex dump, e.g. `11 da 27 00`.
 String hexBytes(Iterable<int> bytes) =>
     bytes.map((b) => (b & 0xFF).toRadixString(16).padLeft(2, '0')).join(' ');

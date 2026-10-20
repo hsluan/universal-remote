@@ -33,6 +33,28 @@ void main() {
     expect(after.single.state.temperature, 22);
   });
 
+  test('partial updates issued together keep each other\'s fields', () async {
+    final repo = AcDeviceRepositoryImpl(preferences: SharedPreferences.getInstance());
+    await repo.save(device);
+    // Same event-loop turn: the send queue saving a state while the user renames.
+    await Future.wait([
+      repo.update('a1', (d) => d.copyWith(name: 'Renamed')),
+      repo.update('a1', (d) => d.copyWith(state: const AcState(temperature: 18))),
+    ]);
+    final stored = (await AcDeviceRepositoryImpl(preferences: SharedPreferences.getInstance()).getAll()).single;
+    expect(stored.name, 'Renamed');
+    expect(stored.state.temperature, 18);
+    expect(await repo.update('missing', (d) => d), isNull);
+  });
+
+  test('a failed update does not block the next operations', () async {
+    final repo = AcDeviceRepositoryImpl(preferences: SharedPreferences.getInstance());
+    await repo.save(device);
+    await expectLater(repo.update('a1', (d) => throw StateError('boom')), throwsStateError);
+    await repo.update('a1', (d) => d.copyWith(name: 'After'));
+    expect((await repo.getAll()).single.name, 'After');
+  });
+
   test('skips corrupt entries', () async {
     SharedPreferences.setMockInitialValues({
       AcDeviceRepositoryImpl.storageKey: '[{"id":"ok","name":"A","code":"midea"},{"broken":true}]',

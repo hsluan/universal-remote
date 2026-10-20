@@ -80,11 +80,13 @@ class ToshibaAcEncoder implements AcFrameEncoder {
   IrPacket encode(AcState state, {AcState? previous}) {
     final normalized = capabilities.normalize(state);
     final train = PulseTrain();
+    final extras = <String>[];
     _send(train, buildFrame(normalized));
     if (previous != null && normalized.isPowerOn && previous.swingVertical != normalized.swingVertical) {
       _send(train, swingFrame(on: normalized.swingVertical));
+      extras.add('swing ${normalized.swingVertical ? 'on' : 'off'}');
     }
-    return IrPacket(frequency: frequency, pattern: train.build(), name: '$label ${state.isPowerOn ? 'on' : 'off'}');
+    return IrPacket(frequency: frequency, pattern: train.build(), name: packetName(label, normalized, extras));
   }
 
   static void _send(PulseTrain train, List<int> frame) {

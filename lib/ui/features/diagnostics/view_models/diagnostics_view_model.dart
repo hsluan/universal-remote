@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
 import '../../../../domain/encoders/nec_encoder.dart';
 import '../../../../domain/encoders/samsung_encoder.dart';
 import '../../../../domain/models/ir_packet.dart';
+import '../../../../domain/models/ir_send_record.dart';
+import '../../../../domain/services/ir_send_log.dart';
 import '../../../../domain/use_cases/get_hardware_status_use_case.dart';
 import '../../../../domain/use_cases/transmit_ir_packet_use_case.dart';
 
@@ -10,10 +15,22 @@ class DiagnosticsViewModel extends ChangeNotifier {
   DiagnosticsViewModel({
     required this.getHardwareStatusUseCase,
     required this.transmitIrPacketUseCase,
-  });
+    required this.sendLog,
+  }) {
+    _logSubscription = sendLog.changes.listen((_) => notifyListeners());
+  }
+
+  /// Label of this screen's transmissions in the send log.
+  static const String logSource = 'Diagnostics';
 
   final GetHardwareStatusUseCase getHardwareStatusUseCase;
   final TransmitIrPacketUseCase transmitIrPacketUseCase;
+
+  /// Every transmission of the app (remotes, Find my AC, this screen).
+  final IrSendLog sendLog;
+
+  late final StreamSubscription<void> _logSubscription;
+  bool _disposed = false;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -27,8 +44,8 @@ class DiagnosticsViewModel extends ChangeNotifier {
   String? _lastError;
   String? get lastError => _lastError;
 
-  final List<String> _logs = [];
-  List<String> get logs => List.unmodifiable(_logs);
+  /// Newest first.
+  List<IrSendRecord> get records => sendLog.records;
 
   Future<void> checkHardware() async {
     _isLoading = true;
@@ -37,10 +54,8 @@ class DiagnosticsViewModel extends ChangeNotifier {
 
     try {
       _status = await getHardwareStatusUseCase.execute();
-      _addLog('Hardware check: hasEmitter=${_status?.hasEmitter}, ranges=${_status?.frequencies.length}');
     } catch (e) {
       _lastError = e.toString();
-      _addLog('Hardware check error: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -54,12 +69,10 @@ class DiagnosticsViewModel extends ChangeNotifier {
 
     try {
       HapticFeedback.mediumImpact().ignore();
-      await transmitIrPacketUseCase.execute(packet);
-      _addLog('Transmitted: ${packet.name} (${packet.pattern.length} pulses, ${packet.frequency} Hz)');
+      await transmitIrPacketUseCase.execute(packet, source: logSource);
       return true;
     } catch (e) {
       _lastError = e.toString();
-      _addLog('Transmission failed: $e');
       return false;
     } finally {
       // Keep transmitting state active briefly for visual feedback
@@ -88,16 +101,20 @@ class DiagnosticsViewModel extends ChangeNotifier {
     return transmit(packet);
   }
 
-  void clearLogs() {
-    _logs.clear();
-    notifyListeners();
+  void clearLogs() => sendLog.clear();
+
+  /// The send log as plain text, oldest first, for pasting into a bug report.
+  String exportLog() => sendLog.export();
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
   }
 
-  void _addLog(String message) {
-    final time = DateTime.now().toIso8601String().substring(11, 19);
-    _logs.insert(0, '[$time] $message');
-    if (_logs.length > 50) {
-      _logs.removeLast();
-    }
+  @override
+  void dispose() {
+    _disposed = true;
+    _logSubscription.cancel();
+    super.dispose();
   }
 }

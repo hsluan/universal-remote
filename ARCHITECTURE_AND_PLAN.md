@@ -208,8 +208,13 @@ Milestone 1 is done. Priorities changed to an AC-first vertical slice, which is 
   confirms the beep; auto mode advances every 4 s; a Power-off check confirms the match.
 - **Brand suggestions**: `assets/ir_db/ac_brands.json` ranks brands common in Vietnam and maps each to its codes.
   Casper maps to Electra first.
-- **Storage**: paired ACs and their last state in shared preferences (`AcDeviceRepository`); SQLite is no longer
-  needed for this slice.
+- **Sending** (`AcSendQueue`, `IrSendLog`): every paired-AC send goes through one queue: one transmission at a time
+  across all ACs, taps during a send merged into one pending state, each frame encoded against the state the AC last
+  received (so toggle commands go out once), and the delivered state saved. On Android, `ConsumerIrBridge` runs the
+  synchronous `ConsumerIrManager.transmit` on its own thread, never on the main thread. Diagnostics shows the last 50
+  transmissions (frames, timings, errors) with Copy for bug reports.
+- **Storage**: paired ACs and their last state in shared preferences (`AcDeviceRepository`, writes serialized, partial
+  `update` for state and name); SQLite is no longer needed for this slice.
 - **UI**: Home (device cards with one-tap power), Find-my-AC wizard, AC remote (dial, modes, fan, airflow);
   Diagnostics moved to the Home menu.
 - **TV**: Samsung32, Sony SIRC, Panasonic (Kaseikyo) and Pronto encoders plus `tv_codesets.json` (IRDB) are ready

@@ -17,7 +17,7 @@ enum LgAcModel {
 /// `0x88 | power:2 | pad | mode:3 | temp-15:4 | fan:4 | sum:4`, where sum is the
 /// 4-bit sum of the four nibbles between signature and checksum. Power off is
 /// a fixed command; swing is a separate command appended when it changed.
-class LgAcEncoder implements AcProtocolEncoder {
+class LgAcEncoder implements AcFrameEncoder {
   const LgAcEncoder({this.model = LgAcModel.lg2});
 
   final LgAcModel model;
@@ -70,10 +70,18 @@ class LgAcEncoder implements AcProtocolEncoder {
     return sum & 0xF;
   }
 
+  /// The 28-bit command as 4 bytes, most significant first (the top nibble is 0).
+  @override
+  List<int> buildFrame(AcState state) {
+    final command = buildCommand(state);
+    return [for (var shift = 24; shift >= 0; shift -= 8) (command >> shift) & 0xFF];
+  }
+
   @override
   IrPacket encode(AcState state, {AcState? previous}) {
     final normalized = capabilities.normalize(state);
     final train = PulseTrain();
+    final extras = <String>[];
     _sendCommand(train, buildCommand(normalized));
     if (normalized.isPowerOn && previous != null && previous.swingVertical != normalized.swingVertical) {
       final swing = switch (model) {
@@ -81,8 +89,9 @@ class LgAcEncoder implements AcProtocolEncoder {
         LgAcModel.lg => swingVToggle,
       };
       _sendCommand(train, swing);
+      extras.add(model == LgAcModel.lg ? 'swing toggle' : 'swing ${normalized.swingVertical ? 'on' : 'off'}');
     }
-    return IrPacket(frequency: frequency, pattern: train.build(), name: '$label ${state.isPowerOn ? 'on' : 'off'}');
+    return IrPacket(frequency: frequency, pattern: train.build(), name: packetName(label, normalized, extras));
   }
 
   void _sendCommand(PulseTrain train, int command) {

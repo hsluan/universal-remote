@@ -34,6 +34,9 @@ class AcPairingViewModel extends ChangeNotifier {
 
   static const List<String> roomSuggestions = ['Living room', 'Bedroom', 'Kitchen', 'Office'];
 
+  /// Label of the wizard's transmissions in the send log.
+  static const String logSource = 'Find my AC';
+
   PairingStep _step = PairingStep.brand;
   PairingStep get step => _step;
 
@@ -219,7 +222,9 @@ class AcPairingViewModel extends ChangeNotifier {
   Future<void> sendVerifyOff() async {
     final match = _search?.match;
     if (match == null) return;
-    final ok = await _transmit(() => transmitAcState.executeWith(match, AcState.probe.copyWith(isPowerOn: false)));
+    final ok = await _transmit(
+      () => transmitAcState.execute(match, AcState.probe.copyWith(isPowerOn: false), source: logSource),
+    );
     if (ok) {
       _verifySent = true;
       notifyListeners();
@@ -309,7 +314,7 @@ class AcPairingViewModel extends ChangeNotifier {
     final search = _search;
     if (search == null || search.isExhausted) return;
     final encoder = search.current;
-    await _transmit(() => transmitAcState.executeWith(encoder, AcState.probe));
+    await _transmit(() => transmitAcState.execute(encoder, AcState.probe, source: logSource));
   }
 
   Future<bool> _transmit(Future<Object?> Function() send) async {
