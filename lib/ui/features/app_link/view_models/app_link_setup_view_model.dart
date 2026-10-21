@@ -13,7 +13,7 @@ class AppLinkSetupViewModel extends ChangeNotifier {
     required this.launcher,
     required this.repository,
     List<VendorApp>? apps,
-  }) : apps = apps ?? vendorAppsFor(kind);
+  }) : _apps = apps ?? vendorAppsFor(kind);
 
   static const List<String> roomSuggestions = ['Living room', 'Bedroom', 'Kitchen', 'Office', 'Garage'];
 
@@ -21,8 +21,10 @@ class AppLinkSetupViewModel extends ChangeNotifier {
   final AppLauncher launcher;
   final DeviceRepository repository;
 
-  /// Apps that control this kind of device.
-  final List<VendorApp> apps;
+  List<VendorApp> _apps;
+
+  /// Apps that control this kind of device, installed ones first once [load] ran.
+  List<VendorApp> get apps => _apps;
 
   final Set<String> _installed = {};
   bool isInstalled(VendorApp app) => _installed.contains(app.packageName);
@@ -45,10 +47,11 @@ class AppLinkSetupViewModel extends ChangeNotifier {
   Future<void> load() async {
     _isLoading = true;
     notifyListeners();
-    for (final app in apps) {
+    for (final app in _apps) {
       if (await launcher.isInstalled(app.packageName)) _installed.add(app.packageName);
     }
-    final firstInstalled = apps.where(isInstalled).firstOrNull;
+    _apps = [..._apps.where(isInstalled), ..._apps.where((app) => !isInstalled(app))];
+    final firstInstalled = _apps.where(isInstalled).firstOrNull;
     if (firstInstalled != null) select(firstInstalled);
     _isLoading = false;
     notifyListeners();

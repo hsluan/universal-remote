@@ -189,11 +189,11 @@ void main() {
     await tester.tap(find.text("Shortcut to the maker's app"));
     await tester.pumpAndSettle();
 
-    // The installed app is preselected and names the device.
+    // The installed app is listed first, preselected, and names the device.
     expect(find.text('Installed'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Xiaomi Home camera'), findsOneWidget);
     final setupList = find.descendant(of: find.byType(ListView).last, matching: find.byType(Scrollable)).first;
     await tester.scrollUntilVisible(find.text('Add shortcut'), 200, scrollable: setupList);
+    expect(find.widgetWithText(TextField, 'Xiaomi Home camera'), findsOneWidget);
     await tester.tap(find.text('Garage'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add shortcut'));
@@ -226,7 +226,7 @@ void main() {
     await pumpApp(tester, build());
     await tester.tap(find.text('Add a device'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Motorbike'));
+    await tester.tap(find.text('TV'));
     await tester.pumpAndSettle();
     expect(find.text('Add it'.toUpperCase()), findsNothing);
   });

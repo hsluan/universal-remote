@@ -48,11 +48,22 @@
         <!-- Makers' apps the app links devices to (lib/domain/devices/vendor_apps.dart):
              Android 11+ hides other packages unless they are listed here. -->
         <package android:name="com.xiaomi.smarthome"/>
-        <package android:name="com.tplink.iot"/>
+        <package android:name="com.mm.android.smartlifeiot"/>
         <package android:name="com.ezviz"/>
+        <package android:name="com.tplink.iot"/>
+        <package android:name="com.connect.enduser"/>
         <package android:name="com.tuya.smartlife"/>
+        <package android:name="com.tuya.smart"/>
         <package android:name="com.coolkit"/>
+        <package android:name="cloud.shelly.smartcontrol"/>
+        <package android:name="com.wizconnected.wiz2"/>
+        <package android:name="com.yeelight.yeelight_fluid"/>
         <package android:name="com.yeelight.cherry"/>
+        <package android:name="vn.co.honda.hondacrm"/>
+        <package android:name="com.honda.ms.dm.sab"/>
+        <package android:name="jp.co.yamahamotor.yamahamotorcycleconnect.sccu"/>
+        <package android:name="com.vinfast.companion.app"/>
+        <package android:name="vn.vinfast.ecosystem"/>
         <!-- Store page fallback for apps that are not installed. -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>

@@ -221,15 +221,21 @@ DeviceState     per kind (AcState for ACs); unknown states and connections are k
 - **Add device**: pick a kind, then a way to add it; kinds the app cannot drive directly yet show a setup guide
   (what to buy or enable).
 
-Roadmap, each step a new module with its own tests:
+Roadmap, each step a new module with its own tests (protocols researched 2026-10-21):
 
-| Step | Module | Devices |
-|---|---|---|
-| next | LAN smart plug | the fan without a remote (on/off), any socket appliance |
-| next | LAN lights | Wi-Fi bulbs with a local API |
-| then | Camera (RTSP/ONVIF) | Imou, Ezviz, Tapo, Hikvision: live view and pan/tilt in the app |
-| then | BLE tag | motorbike: make the tag beep, remember where it was last seen |
-| then | IR TV | the TV encoders and IRDB code sets already in the app |
+| Step | Module | Devices | Protocol (local, no vendor account) |
+|---|---|---|---|
+| next | LAN smart plug | the fan without a remote, any socket appliance | Shelly Gen1 `GET /relay/0?turn=on`, Gen2+ `GET /rpc/Switch.Set?id=0&on=true`, mDNS `_shelly._tcp` ([docs](https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/Switch)); CozyLife JSON over TCP 5555, discovery by UDP broadcast to 6095 ([integration](https://github.com/cozylife/hass_cozylife_local_pull)); Sonoff DIY `POST :8081/zeroconf/switch`, mDNS `_ewelink._tcp` ([docs](https://help.sonoff.tech/docs/DIY-MODE-API-PROTOCOL)) |
+| next | LAN lights | WiZ, Yeelight | WiZ JSON over UDP 38899 (`setPilot`/`getPilot`, broadcast discovery) ([pywizlight](https://github.com/sbidy/pywizlight)); Yeelight JSON over TCP 55443, SSDP-like discovery on 239.255.255.250:1982, LAN Control enabled once in its app ([HA docs](https://www.home-assistant.io/integrations/yeelight/)) |
+| then | IR lights | RGB bulbs and strips with 24/44-key remotes | NEC: 24-key extended address 0xEF00, commands 0x00–0x17; 44-key address 0x00 ([WLED codes](https://raw.githubusercontent.com/wled/WLED/main/wled00/ir_codes.h)); code sets vary, so search like Find my AC |
+| then | Camera | Imou, EZVIZ, Tapo, Hikvision | RTSP (`/cam/realmonitor`, `/ch1/main`, `/stream1`, `/Streaming/Channels/101`) and ONVIF PTZ; play with media_kit (low-latency profile), sub-streams in lists: the Redmi 4X decodes one 1080p stream in hardware. Xiaomi cameras have no local stream: shortcut, or a go2rtc home server |
+| then | BLE tag | motorbike: find it in a car park | iTag: write 0x01 to Alert Level 0x2A06 (service 0x1802) to beep, button on 0xFFE1; remember the phone's GPS when the link drops. Needs location permission and MIUI autostart |
+| then | IR TV | Samsung, LG, Sony, Panasonic, Toshiba | the TV encoders and IRDB code sets already in the app |
+
+Not possible or not worth it on this phone: Honda Smart Key (its fob uses its own radio), Yamaha Y-Connect (Android 8+),
+Tuya local keys (need a developer account), Tapo plugs and bulbs (TP-Link login, changing protocol), Xiaomi miIO
+tokens (cloud login). These stay shortcuts to their apps. Android needs a Wi-Fi MulticastLock for mDNS and SSDP
+discovery (WiZ and CozyLife use broadcast instead).
 
 ## Status (2026-10-20): air conditioners first
 
