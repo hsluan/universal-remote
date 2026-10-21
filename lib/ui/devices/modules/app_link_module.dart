@@ -45,6 +45,9 @@ class AppLinkModule implements DeviceModule {
   bool get opensWhenAdded => false;
 
   @override
+  Future<void> onRemoved(Device device) async {}
+
+  @override
   List<AddDeviceOption> get addOptions => [
         for (final kind in DeviceKind.values)
           if (vendorAppsFor(kind).isNotEmpty)

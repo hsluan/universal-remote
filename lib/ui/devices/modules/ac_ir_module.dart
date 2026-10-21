@@ -60,6 +60,9 @@ class AcIrModule implements DeviceModule {
   bool get opensWhenAdded => true;
 
   @override
+  Future<void> onRemoved(Device device) async => sendQueue.forget(device.id);
+
+  @override
   List<AddDeviceOption> get addOptions => [
         AddDeviceOption(
           kind: DeviceKind.airConditioner,

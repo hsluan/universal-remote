@@ -1,9 +1,14 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/cameras/onvif_ptz_control.dart';
+import '../data/cameras/rtsp_prober.dart';
+import '../data/cameras/secure_credential_store.dart';
+import '../data/cameras/ws_discovery.dart';
 import '../data/repositories/ac_brand_repository_impl.dart';
 import '../data/repositories/device_repository_impl.dart';
 import '../data/services/android_app_launcher.dart';
 import '../data/services/consumer_ir_service.dart';
+import '../data/services/multicast_lock.dart';
 import '../domain/devices/device_kind.dart';
 import '../domain/encoders/ac/ac_encoder_registry.dart';
 import '../domain/encoders/ac/standard_ac_encoders.dart';
@@ -17,9 +22,12 @@ import '../domain/services/ir_transmitter.dart';
 import '../domain/use_cases/get_hardware_status_use_case.dart';
 import '../domain/use_cases/transmit_ac_state_use_case.dart';
 import '../domain/use_cases/transmit_ir_packet_use_case.dart';
+import '../ui/core/video/media_kit_live_player.dart';
+import '../ui/devices/camera_services.dart';
 import '../ui/devices/device_module.dart';
 import '../ui/devices/modules/ac_ir_module.dart';
 import '../ui/devices/modules/app_link_module.dart';
+import '../ui/devices/modules/ip_camera_module.dart';
 import '../ui/features/ac_pairing/view_models/ac_pairing_view_model.dart';
 import '../ui/features/ac_remote/view_models/ac_remote_view_model.dart';
 import '../ui/features/app_link/view_models/app_link_setup_view_model.dart';
@@ -34,6 +42,7 @@ class AppDependencies {
     required this.acBrands,
     required this.acRegistry,
     required this.appLauncher,
+    required this.cameras,
     IrSendLog? sendLog,
   })  : sendLog = sendLog ?? IrSendLog(),
         getHardwareStatus = GetHardwareStatusUseCase(transmitter: transmitter) {
@@ -46,6 +55,7 @@ class AppDependencies {
         createPairingViewModel: createPairingViewModel,
         createRemoteViewModel: createRemoteViewModel,
       ),
+      IpCameraModule(services: cameras, repository: devices, launcher: appLauncher),
       AppLinkModule(launcher: appLauncher, createSetupViewModel: createAppLinkSetupViewModel),
     ]);
   }
@@ -58,6 +68,14 @@ class AppDependencies {
       acBrands: AcBrandRepositoryImpl(),
       acRegistry: createStandardAcRegistry(),
       appLauncher: AndroidAppLauncher(),
+      cameras: CameraServices(
+        credentials: SecureCredentialStore(),
+        prober: SocketRtspProber(),
+        discovery: WsDiscovery(multicastLock: AndroidMulticastLock()),
+        createPtz: ({required host, required port, required credentials}) =>
+            OnvifPtzControl(host: host, port: port, credentials: credentials),
+        createPlayer: MediaKitLivePlayer.new,
+      ),
     );
   }
 
@@ -66,6 +84,9 @@ class AppDependencies {
   final AcBrandRepository acBrands;
   final AcEncoderRegistry acRegistry;
   final AppLauncher appLauncher;
+
+  /// Network, secure storage and video player of the camera module.
+  final CameraServices cameras;
   final IrSendLog sendLog;
   final GetHardwareStatusUseCase getHardwareStatus;
   late final TransmitIrPacketUseCase transmitPacket;

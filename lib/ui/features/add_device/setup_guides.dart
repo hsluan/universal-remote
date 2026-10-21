@@ -92,31 +92,31 @@ const Map<DeviceKind, SetupGuide> setupGuides = {
     ],
   ),
   DeviceKind.camera: SetupGuide(
-    intro: "Today: a shortcut to the camera's app. Next: live view and pan/tilt inside this app over your Wi-Fi "
-        '(RTSP/ONVIF), without the maker\'s cloud. Get your cameras ready for it:',
+    intro: 'Imou, EZVIZ, Tapo and Hikvision cameras play live in this app over your Wi-Fi, with pan/tilt where '
+        "the camera supports it, without the maker's cloud. Turn RTSP/ONVIF on in the camera first:",
     points: [
       GuidePoint(
         title: 'Imou',
-        tag: 'Coming next',
-        detail: 'Live view uses RTSP with the user "admin" and the safety code on the camera label (or the device '
-            'password set in Imou Life). Pan/tilt over ONVIF depends on the model.',
+        tag: 'Works now',
+        detail: 'User "admin" and the safety code on the camera label (or the device password set in Imou Life). '
+            'Pan/tilt over ONVIF depends on the model.',
       ),
       GuidePoint(
         title: 'EZVIZ',
-        tag: 'Coming next',
+        tag: 'Works now',
         detail: 'In the EZVIZ app: Profile › Settings › LAN Live View › scan › your camera › Local Server Settings › '
             'enable RTSP. Password: the 6-letter verification code on the label. Some firmware turns RTSP off again '
             'after a reboot; doorbells have no RTSP.',
       ),
       GuidePoint(
         title: 'Tapo',
-        tag: 'Coming next',
+        tag: 'Works now',
         detail: 'In the Tapo app: your camera › Device Settings › Advanced Settings › Camera Account. Battery models '
             '(C410, C420, C425) have no RTSP, and only two of Tapo Care, SD recording and RTSP/ONVIF run at once.',
       ),
       GuidePoint(
         title: 'Hikvision',
-        tag: 'Coming next',
+        tag: 'Works now',
         detail: "ONVIF is off by default: in the camera's web page open Configuration › Network › Advanced Settings › "
             'Integration Protocol, enable ONVIF and add an ONVIF user.',
       ),
@@ -129,8 +129,8 @@ const Map<DeviceKind, SetupGuide> setupGuides = {
       ),
       GuidePoint(
         title: 'On this phone',
-        detail: 'The Redmi 4X decodes one 1080p video at a time in hardware, so the app will show the small '
-            "sub-stream in lists and each camera's main stream only full screen.",
+        detail: 'The Redmi 4X decodes one 1080p video at a time in hardware, so the app plays the small stream '
+            'first; tap SD/HD for full resolution.',
       ),
     ],
   ),

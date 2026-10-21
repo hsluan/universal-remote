@@ -59,6 +59,10 @@ abstract interface class DeviceModule {
   /// that would leave the app: no).
   bool get opensWhenAdded;
 
+  /// Cleans up what the module keeps outside the device list (secrets, caches)
+  /// before the device is deleted.
+  Future<void> onRemoved(Device device);
+
   List<AddDeviceOption> get addOptions;
 }
 

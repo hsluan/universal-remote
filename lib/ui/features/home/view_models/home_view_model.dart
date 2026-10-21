@@ -86,6 +86,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   Future<void> remove(Device device) async {
+    await modules.moduleFor(device)?.onRemoved(device);
     await repository.delete(device.id);
     await refresh();
   }

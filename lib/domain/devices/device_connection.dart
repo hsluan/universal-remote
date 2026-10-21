@@ -17,6 +17,10 @@ sealed class DeviceConnection {
           host: json['host'] as String,
           port: (json['port'] as num?)?.toInt(),
           deviceId: json['deviceId'] as String?,
+          options: {
+            for (final entry in (json['options'] as Map<String, dynamic>? ?? const {}).entries)
+              entry.key: '${entry.value}',
+          },
         );
       case 'ble':
         return BleConnection(protocol: json['protocol'] as String, address: json['address'] as String);
@@ -47,7 +51,7 @@ final class IrConnection extends DeviceConnection {
 
 /// A device on the home Wi-Fi, controlled with its local protocol (no vendor cloud).
 final class LanConnection extends DeviceConnection {
-  const LanConnection({required this.protocol, required this.host, this.port, this.deviceId});
+  const LanConnection({required this.protocol, required this.host, this.port, this.deviceId, this.options = const {}});
 
   /// Protocol id, e.g. `shelly`, `wiz`, `yeelight`, `onvif`.
   final String protocol;
@@ -57,6 +61,10 @@ final class LanConnection extends DeviceConnection {
   /// The device's own id (MAC, serial), to find it again when its address changes.
   final String? deviceId;
 
+  /// Protocol-specific settings, e.g. a camera's brand and stream paths. Never secrets:
+  /// passwords go to the credential store.
+  final Map<String, String> options;
+
   @override
   Map<String, Object?> toJson() => {
         'type': 'lan',
@@ -64,6 +72,7 @@ final class LanConnection extends DeviceConnection {
         'host': host,
         if (port != null) 'port': port,
         if (deviceId != null) 'deviceId': deviceId,
+        if (options.isNotEmpty) 'options': options,
       };
 
   @override
@@ -72,10 +81,14 @@ final class LanConnection extends DeviceConnection {
       other.protocol == protocol &&
       other.host == host &&
       other.port == port &&
-      other.deviceId == deviceId;
+      other.deviceId == deviceId &&
+      _sameOptions(other.options, options);
 
   @override
-  int get hashCode => Object.hash(protocol, host, port, deviceId);
+  int get hashCode => Object.hash(protocol, host, port, deviceId, Object.hashAllUnordered(options.entries.map((e) => '${e.key}=${e.value}')));
+
+  static bool _sameOptions(Map<String, String> a, Map<String, String> b) =>
+      a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
 }
 
 /// A Bluetooth Low Energy device near the phone.

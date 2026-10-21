@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_remote/app/app_dependencies.dart';
+import 'package:universal_remote/domain/cameras/camera_services.dart';
 import 'package:universal_remote/domain/devices/device.dart';
 import 'package:universal_remote/domain/encoders/ac/standard_ac_encoders.dart';
 import 'package:universal_remote/domain/models/ac_device.dart';
@@ -14,17 +15,24 @@ void main() {
   late FakeTransmitter transmitter;
   late InMemoryDeviceRepository devices;
   late FakeAppLauncher launcher;
+  late FakeCameras cameras;
 
-  AppDependencies build({List<Device> initial = const [], Set<String> installedApps = const {}}) {
+  AppDependencies build({
+    List<Device> initial = const [],
+    Set<String> installedApps = const {},
+    FakeCameras? cameraFakes,
+  }) {
     transmitter = FakeTransmitter();
     devices = InMemoryDeviceRepository(initial);
     launcher = FakeAppLauncher(installed: {...installedApps});
+    cameras = cameraFakes ?? FakeCameras();
     return AppDependencies(
       transmitter: transmitter,
       devices: devices,
       acBrands: FakeAcBrandRepository(),
       acRegistry: createStandardAcRegistry(),
       appLauncher: launcher,
+      cameras: cameras.services,
     );
   }
 
@@ -255,6 +263,68 @@ void main() {
     await tester.pumpAndSettle();
     expect(devices.devices, isEmpty);
     expect(find.text('Control everything at home'), findsOneWidget);
+  });
+
+  testWidgets('add a Tapo camera, watch it live, pan it, then remove it with its login', (tester) async {
+    await pumpApp(
+      tester,
+      build(cameraFakes: FakeCameras(streams: {'/stream1': const RtspStreamFound(videoCodec: 'H264'), '/stream2': const RtspStreamFound()})),
+    );
+    await tester.tap(find.text('Add a device'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Camera'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('IP camera on your Wi-Fi'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tapo'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Camera Account'), findsOneWidget);
+
+    await tester.enterText(find.widgetWithText(TextField, 'Camera address (IP)'), '192.168.1.20');
+    await tester.enterText(find.widgetWithText(TextField, 'User'), 'gate');
+    await tester.enterText(find.widgetWithText(TextField, 'Password'), 'secret');
+    await tester.pumpAndSettle();
+    final list = find.descendant(of: find.byType(ListView).last, matching: find.byType(Scrollable)).first;
+    await tester.scrollUntilVisible(find.text('Test connection'), 200, scrollable: list);
+    await tester.tap(find.text('Test connection'));
+    await tester.pumpAndSettle();
+    expect(find.text('Connected · H.264 · small stream available · pan/tilt available'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Save camera'), 200, scrollable: list);
+    await tester.tap(find.text('Save camera'));
+    await tester.pumpAndSettle();
+
+    // Saved without the password; the live view opened on the small stream.
+    final saved = devices.devices.single;
+    expect(saved.kind, DeviceKind.camera);
+    expect(saved.toJson().toString(), isNot(contains('secret')));
+    expect(cameras.credentials.saved[saved.id]?.password, 'secret');
+    expect(find.text('FAKE VIDEO'), findsOneWidget);
+    expect(cameras.players.last.opened.single.toString(), 'rtsp://gate:secret@192.168.1.20:554/stream2');
+
+    // HD switches to the main stream.
+    await tester.tap(find.text('SD'));
+    await tester.pumpAndSettle();
+    expect(cameras.players.last.opened.last.path, '/stream1');
+
+    // Holding an arrow moves the camera until release.
+    final gesture = await tester.startGesture(tester.getCenter(find.bySemanticsLabel('Turn left')));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(cameras.ptzClients.last.calls, ['move left', 'stop']);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(cameras.players.last.disposed, isTrue);
+    expect(find.text('Live view · Pan/tilt'), findsOneWidget);
+
+    await tester.longPress(find.text('Tapo camera'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    expect(devices.devices, isEmpty);
+    expect(cameras.credentials.saved, isEmpty);
   });
 
   testWidgets('diagnostics sends the Samsung32 TV power preset', (tester) async {

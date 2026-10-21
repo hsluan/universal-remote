@@ -215,7 +215,13 @@ DeviceState     per kind (AcState for ACs); unknown states and connections are k
 - **UI plug-ins**: a `DeviceModule` (lib/ui/devices/) shows its devices as home cards, offers a quick power toggle,
   opens their screen, and lists its ways to add a device. Home and Add device only talk to the `DeviceModules`
   registry built in the composition root, so a new family is a new module, not a change to those screens.
-- **Modules today**: `AcIrModule` (IR air conditioners: Find my AC, remote, send queue) and `AppLinkModule`
+- **Cameras** (`IpCameraModule`, 2026-10-21): RTSP live view (media_kit, low-latency profile, RTSP over TCP,
+  small stream first: the Redmi 4X decodes one 1080p stream in hardware) and ONVIF pan/tilt (WS-Security
+  UsernameToken timed with the camera clock, HTTP Basic/Digest as fallback). Adding a camera: ONVIF WS-Discovery
+  or a typed address, then a connection test (RTSP DESCRIBE with Digest auth, trying each brand's known paths) that
+  tells a wrong password from a wrong address. Logins live in the Keystore-backed secure storage, never in the
+  device JSON (`CredentialStore`); removing a camera deletes its login (`DeviceModule.onRemoved`).
+- **Modules today**: `AcIrModule` (IR air conditioners: Find my AC, remote, send queue), `IpCameraModule` and `AppLinkModule`
   (shortcuts to makers' apps; `AppLauncherBridge.kt` opens or installs them; each package is declared in the
   manifest `<queries>` for Android 11+, which a test checks).
 - **Add device**: pick a kind, then a way to add it; kinds the app cannot drive directly yet show a setup guide
@@ -228,7 +234,7 @@ Roadmap, each step a new module with its own tests (protocols researched 2026-10
 | next | LAN smart plug | the fan without a remote, any socket appliance | Shelly Gen1 `GET /relay/0?turn=on`, Gen2+ `GET /rpc/Switch.Set?id=0&on=true`, mDNS `_shelly._tcp` ([docs](https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/Switch)); CozyLife JSON over TCP 5555, discovery by UDP broadcast to 6095 ([integration](https://github.com/cozylife/hass_cozylife_local_pull)); Sonoff DIY `POST :8081/zeroconf/switch`, mDNS `_ewelink._tcp` ([docs](https://help.sonoff.tech/docs/DIY-MODE-API-PROTOCOL)) |
 | next | LAN lights | WiZ, Yeelight | WiZ JSON over UDP 38899 (`setPilot`/`getPilot`, broadcast discovery) ([pywizlight](https://github.com/sbidy/pywizlight)); Yeelight JSON over TCP 55443, SSDP-like discovery on 239.255.255.250:1982, LAN Control enabled once in its app ([HA docs](https://www.home-assistant.io/integrations/yeelight/)) |
 | then | IR lights | RGB bulbs and strips with 24/44-key remotes | NEC: 24-key extended address 0xEF00, commands 0x00–0x17; 44-key address 0x00 ([WLED codes](https://raw.githubusercontent.com/wled/WLED/main/wled00/ir_codes.h)); code sets vary, so search like Find my AC |
-| then | Camera | Imou, EZVIZ, Tapo, Hikvision | RTSP (`/cam/realmonitor`, `/ch1/main`, `/stream1`, `/Streaming/Channels/101`) and ONVIF PTZ; play with media_kit (low-latency profile), sub-streams in lists: the Redmi 4X decodes one 1080p stream in hardware. Xiaomi cameras have no local stream: shortcut, or a go2rtc home server |
+| done | Camera | Imou, EZVIZ, Tapo, Hikvision | RTSP (`/cam/realmonitor`, `/ch1/main`, `/stream1`, `/Streaming/Channels/101`) and ONVIF PTZ; play with media_kit (low-latency profile), sub-streams in lists: the Redmi 4X decodes one 1080p stream in hardware. Xiaomi cameras have no local stream: shortcut, or a go2rtc home server |
 | then | BLE tag | motorbike: find it in a car park | iTag: write 0x01 to Alert Level 0x2A06 (service 0x1802) to beep, button on 0xFFE1; remember the phone's GPS when the link drops. Needs location permission and MIUI autostart |
 | then | IR TV | Samsung, LG, Sony, Panasonic, Toshiba | the TV encoders and IRDB code sets already in the app |
 
