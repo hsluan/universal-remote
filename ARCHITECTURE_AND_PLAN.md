@@ -1,4 +1,4 @@
-# Universal IR Remote — Architecture & Implementation Plan
+# Universal Remote — Architecture & Implementation Plan
 
 > **Target Device:** Xiaomi Redmi 4X (*santoni* — Qualcomm Snapdragon 435, Consumer IR Blaster)  
 > **Tech Stack:** Flutter (Dart) + Native Android Platform Channel (Kotlin)  
@@ -193,6 +193,43 @@ universal-remote/
 ```
 
 ---
+
+## Universal control (2026-10-21)
+
+The app is no longer only an IR remote: it is a hub for every controllable thing at home. A device is described by
+what it is and how the app reaches it, and each family of devices is a plug-in.
+
+```
+Device          id, name, room, kind, connection, last known state (lib/domain/devices/device.dart)
+DeviceKind      airConditioner, fan, light, plug, tv, camera, vehicle
+DeviceConnection (sealed)
+  IrConnection       IR codes from the phone's blaster (one-way: the app keeps the state it sent)
+  LanConnection      a local Wi-Fi protocol at an address (shelly, wiz, onvif...), no vendor cloud
+  BleConnection      a Bluetooth LE protocol (itag...)
+  AppLinkConnection  a shortcut to the maker's app, for closed ecosystems (Xiaomi Home...)
+DeviceState     per kind (AcState for ACs); unknown states and connections are kept as raw JSON
+```
+
+- **Storage**: `DeviceRepository` stores every kind under `devices.v2`; the first load migrates the version 1
+  air conditioners (`ac_devices.v1`, left in place so an older build still works).
+- **UI plug-ins**: a `DeviceModule` (lib/ui/devices/) shows its devices as home cards, offers a quick power toggle,
+  opens their screen, and lists its ways to add a device. Home and Add device only talk to the `DeviceModules`
+  registry built in the composition root, so a new family is a new module, not a change to those screens.
+- **Modules today**: `AcIrModule` (IR air conditioners: Find my AC, remote, send queue) and `AppLinkModule`
+  (shortcuts to makers' apps; `AppLauncherBridge.kt` opens or installs them; each package is declared in the
+  manifest `<queries>` for Android 11+, which a test checks).
+- **Add device**: pick a kind, then a way to add it; kinds the app cannot drive directly yet show a setup guide
+  (what to buy or enable).
+
+Roadmap, each step a new module with its own tests:
+
+| Step | Module | Devices |
+|---|---|---|
+| next | LAN smart plug | the fan without a remote (on/off), any socket appliance |
+| next | LAN lights | Wi-Fi bulbs with a local API |
+| then | Camera (RTSP/ONVIF) | Imou, Ezviz, Tapo, Hikvision: live view and pan/tilt in the app |
+| then | BLE tag | motorbike: make the tag beep, remember where it was last seen |
+| then | IR TV | the TV encoders and IRDB code sets already in the app |
 
 ## Status (2026-10-20): air conditioners first
 

@@ -4,6 +4,7 @@ import '../../../../domain/models/ac_state.dart';
 import '../../../core/theme/ac_style.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/ir_pulse.dart';
+import '../../../core/widgets/rename_dialog.dart';
 import '../view_models/ac_remote_view_model.dart';
 import 'widgets/temperature_dial.dart';
 
@@ -178,7 +179,7 @@ class _AcRemoteViewState extends State<AcRemoteView> {
       case _MenuAction.resend:
         await _vm.resend();
       case _MenuAction.rename:
-        final name = await _askName(context, _vm.device.name);
+        final name = await showRenameDialog(context, current: _vm.device.name);
         if (name != null) await _vm.rename(name);
       case _MenuAction.delete:
         final confirmed = await showDialog<bool>(
@@ -205,27 +206,6 @@ class _AcRemoteViewState extends State<AcRemoteView> {
 }
 
 enum _MenuAction { resend, rename, delete }
-
-Future<String?> _askName(BuildContext context, String current) {
-  final controller = TextEditingController(text: current);
-  return showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Rename'),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(border: OutlineInputBorder()),
-        onSubmitted: (value) => Navigator.pop(context, value),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Save')),
-      ],
-    ),
-  ).whenComplete(controller.dispose);
-}
 
 class _PowerButton extends StatelessWidget {
   const _PowerButton({required this.isOn, required this.onPressed});

@@ -1,35 +1,43 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../domain/models/ac_device.dart';
-import '../../../../domain/repositories/ac_device_repository.dart';
-import '../../../../domain/services/ac_send_queue.dart';
+import '../../../../domain/devices/device.dart';
+import '../../../../domain/repositories/device_repository.dart';
 import '../../../../domain/use_cases/get_hardware_status_use_case.dart';
-import '../../../core/transmit_error.dart';
+import '../../../devices/device_module.dart';
 
 class HomeViewModel extends ChangeNotifier {
   HomeViewModel({
     required this.repository,
-    required this.sendQueue,
+    required this.modules,
     required this.getHardwareStatus,
   });
 
-  final AcDeviceRepository repository;
-  final AcSendQueue sendQueue;
+  final DeviceRepository repository;
+  final DeviceModules modules;
   final GetHardwareStatusUseCase getHardwareStatus;
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
 
-  List<AcDevice> _devices = const [];
-  List<AcDevice> get devices => _devices;
+  List<Device> _devices = const [];
+  List<Device> get devices => _devices;
+
+  /// Devices grouped by kind, in [DeviceKind] order; devices no module handles are left out.
+  List<(DeviceKind, List<Device>)> get sections => [
+        for (final kind in DeviceKind.values)
+          if (_devices.any((d) => d.kind == kind && modules.moduleFor(d) != null))
+            (kind, [for (final d in _devices) if (d.kind == kind && modules.moduleFor(d) != null) d]),
+      ];
 
   /// `null` until the hardware check finishes.
   bool? _hasEmitter;
   bool? get hasEmitter => _hasEmitter;
 
+  bool get hasIrDevices => _devices.any((d) => d.connection is IrConnection);
+
   final Set<String> _sending = {};
-  bool isSending(AcDevice device) => _sending.contains(device.id);
+  bool isSending(Device device) => _sending.contains(device.id);
 
   String? _error;
   String? get error => _error;
@@ -53,18 +61,32 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// One-tap power toggle from the device card. Taps while that AC is sending are ignored.
-  Future<void> togglePower(AcDevice device) async {
-    if (_sending.contains(device.id)) return;
+  /// Whether the device's card shows a power button.
+  bool canToggle(Device device) => modules.moduleFor(device)?.quickToggle(device) != null;
+
+  /// One-tap power toggle from the card. Taps while that device is sending are ignored.
+  Future<void> togglePower(Device device) async {
+    final action = modules.moduleFor(device)?.quickToggle(device);
+    if (action == null || _sending.contains(device.id)) return;
     HapticFeedback.mediumImpact().ignore();
-    final current = sendQueue.deliveredState(device);
     _sending.add(device.id);
     _error = null;
     notifyListeners();
-    final result = await sendQueue.send(device, current.copyWith(isPowerOn: !current.isPowerOn));
-    if (!result.delivered) _error = describeTransmitError(result.error!);
+    _error = await action();
     _sending.remove(device.id);
-    // The queue saved the delivered state.
+    // The module saved the new state.
+    await refresh();
+  }
+
+  Future<void> rename(Device device, String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    await repository.update(device.id, (stored) => stored.copyWith(name: trimmed));
+    await refresh();
+  }
+
+  Future<void> remove(Device device) async {
+    await repository.delete(device.id);
     await refresh();
   }
 

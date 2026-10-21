@@ -9,7 +9,7 @@ import '../../../../domain/models/ac_device.dart';
 import '../../../../domain/models/ac_state.dart';
 import '../../../../domain/pairing/ac_code_search.dart';
 import '../../../../domain/repositories/ac_brand_repository.dart';
-import '../../../../domain/repositories/ac_device_repository.dart';
+import '../../../../domain/repositories/device_repository.dart';
 import '../../../../domain/use_cases/transmit_ac_state_use_case.dart';
 import '../../../core/transmit_error.dart';
 
@@ -25,7 +25,7 @@ class AcPairingViewModel extends ChangeNotifier {
   });
 
   final AcBrandRepository brandRepository;
-  final AcDeviceRepository deviceRepository;
+  final DeviceRepository deviceRepository;
   final AcEncoderRegistry registry;
   final TransmitAcStateUseCase transmitAcState;
 
@@ -124,7 +124,7 @@ class AcPairingViewModel extends ChangeNotifier {
       _brands = await brandRepository.getBrands();
       final devices = await deviceRepository.getAll();
       _existingNames = [for (final d in devices) d.name];
-      _pairedBrandNames = {for (final d in devices) d.brandName}.toList();
+      _pairedBrandNames = {for (final d in devices) if (AcDevice.isAc(d)) d.brandName}.toList();
     } catch (e) {
       _error = 'Could not load the brand list.';
     } finally {
@@ -274,7 +274,7 @@ class AcPairingViewModel extends ChangeNotifier {
       // The verify step switched the AC off.
       state: match.capabilities.normalize(AcState.probe.copyWith(isPowerOn: false)),
     );
-    await deviceRepository.save(device);
+    await deviceRepository.save(device.toDevice());
     return device;
   }
 

@@ -17,7 +17,7 @@ void main() {
   const coolix = AcDevice(id: 'c', name: 'Bedroom AC', brandName: 'Beko', codeId: 'coolix', state: AcState());
 
   late FakeTransmitter transmitter;
-  late InMemoryAcDeviceRepository repository;
+  late InMemoryDeviceRepository repository;
   late IrSendLog log;
   late AcSendQueue queue;
 
@@ -31,7 +31,7 @@ void main() {
 
   setUp(() {
     transmitter = FakeTransmitter();
-    repository = InMemoryAcDeviceRepository([midea, coolix]);
+    repository = InMemoryDeviceRepository([midea.toDevice(), coolix.toDevice()]);
     log = IrSendLog();
     queue = createQueue();
   });
@@ -44,6 +44,9 @@ void main() {
   }
 
   List<String> sentNames() => [for (final packet in transmitter.sent) packet.name];
+
+  /// The state saved for the Midea AC.
+  AcState savedState() => repository.devices.first.state! as AcState;
 
   test('a swing tap overlapping a send toggles Midea swing exactly once', () async {
     final gate = holdTransmissions();
@@ -59,7 +62,7 @@ void main() {
     expect(sentNames(), ['Midea on + swing toggle', 'Midea on']);
     expect(results.every((r) => r.delivered), isTrue);
     expect(queue.deliveredState(midea), swingOn.copyWith(temperature: 26));
-    expect(repository.devices.first.state, swingOn.copyWith(temperature: 26));
+    expect(savedState(), swingOn.copyWith(temperature: 26));
   });
 
   test('swing on then off during a send ends with swing off', () async {
@@ -72,7 +75,7 @@ void main() {
 
     // The two pending taps cancel out: no swing toggle at all.
     expect(sentNames(), ['Midea on + turbo toggle', 'Midea on']);
-    expect(repository.devices.first.state.swingVertical, isFalse);
+    expect(savedState().swingVertical, isFalse);
   });
 
   test('taps during a send merge into one more transmission', () async {
@@ -86,7 +89,7 @@ void main() {
     expect(transmitter.sent, hasLength(2));
     expect([for (final r in results) r.sequence], [1, 2, 2]);
     expect(results.last.state.temperature, 28);
-    expect(repository.devices.first.state.temperature, 28);
+    expect(savedState().temperature, 28);
   });
 
   test('after a failed send the AC keeps its state, so the retry still carries the toggle', () async {
@@ -100,7 +103,7 @@ void main() {
     expect(failed.delivered, isFalse);
     expect(failed.error, isA<PlatformException>());
     expect(queue.deliveredState(midea).swingVertical, isFalse);
-    expect(repository.devices.first.state.swingVertical, isFalse);
+    expect(savedState().swingVertical, isFalse);
 
     final retried = await queue.send(midea, swingOn);
     expect(retried.delivered, isTrue);
@@ -125,7 +128,7 @@ void main() {
 
   test('a new queue starts from the saved state', () async {
     await queue.send(midea, midea.state.copyWith(swingVertical: true));
-    final saved = repository.devices.first;
+    final saved = AcDevice.fromDevice(repository.devices.first);
 
     final restarted = createQueue();
     expect(restarted.deliveredState(saved).swingVertical, isTrue);
@@ -135,7 +138,7 @@ void main() {
 
   test('pairing again with another code starts from the saved state with the new code', () async {
     await queue.send(midea, midea.state.copyWith(swingVertical: true));
-    final repaired = repository.devices.first.copyWith(codeId: 'coolix');
+    final repaired = AcDevice.fromDevice(repository.devices.first).copyWith(codeId: 'coolix');
 
     expect(queue.deliveredState(repaired), repaired.state);
     await queue.send(repaired, repaired.state.copyWith(temperature: 24));

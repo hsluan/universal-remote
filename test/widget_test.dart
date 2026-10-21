@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_remote/app/app_dependencies.dart';
+import 'package:universal_remote/domain/devices/device.dart';
 import 'package:universal_remote/domain/encoders/ac/standard_ac_encoders.dart';
 import 'package:universal_remote/domain/models/ac_device.dart';
 import 'package:universal_remote/domain/models/ac_state.dart';
@@ -11,18 +12,33 @@ import 'helpers/fakes.dart';
 
 void main() {
   late FakeTransmitter transmitter;
-  late InMemoryAcDeviceRepository devices;
+  late InMemoryDeviceRepository devices;
+  late FakeAppLauncher launcher;
 
-  AppDependencies build({List<AcDevice> initial = const []}) {
+  AppDependencies build({List<Device> initial = const [], Set<String> installedApps = const {}}) {
     transmitter = FakeTransmitter();
-    devices = InMemoryAcDeviceRepository(initial);
+    devices = InMemoryDeviceRepository(initial);
+    launcher = FakeAppLauncher(installed: {...installedApps});
     return AppDependencies(
       transmitter: transmitter,
-      acDevices: devices,
+      devices: devices,
       acBrands: FakeAcBrandRepository(),
       acRegistry: createStandardAcRegistry(),
+      appLauncher: launcher,
     );
   }
+
+  /// Home → Add device → Air conditioner → IR remote option: the Find my AC wizard.
+  Future<void> openFindMyAc(WidgetTester tester) async {
+    await tester.tap(find.text('Add a device'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Air conditioner'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Air conditioner with an IR remote'));
+    await tester.pumpAndSettle();
+  }
+
+  AcState acState(Device device) => device.state! as AcState;
 
   Future<void> pumpApp(WidgetTester tester, AppDependencies deps) async {
     tester.view.physicalSize = const Size(720, 1440);
@@ -35,9 +51,8 @@ void main() {
   testWidgets('empty home leads to the Find my AC wizard with suggestions', (tester) async {
     await pumpApp(tester, build());
 
-    expect(find.text('Control your air conditioner'), findsOneWidget);
-    await tester.tap(find.text('Find my AC'));
-    await tester.pumpAndSettle();
+    expect(find.text('Control everything at home'), findsOneWidget);
+    await openFindMyAc(tester);
 
     expect(find.text('Which brand is your air conditioner?'), findsOneWidget);
     expect(find.text("I don't know the brand"), findsOneWidget);
@@ -49,8 +64,7 @@ void main() {
 
   testWidgets('pairing: brand, test codes, verify, name, then the remote opens', (tester) async {
     await pumpApp(tester, build());
-    await tester.tap(find.text('Find my AC'));
-    await tester.pumpAndSettle();
+    await openFindMyAc(tester);
 
     await tester.tap(find.text('Gree').first);
     await tester.pumpAndSettle();
@@ -82,9 +96,11 @@ void main() {
     await tester.tap(find.text('Save and open remote'));
     await tester.pumpAndSettle();
 
-    expect(devices.devices.single.codeId, 'gree_ybofb');
-    expect(devices.devices.single.name, 'Gree AC');
-    expect(devices.devices.single.room, 'Bedroom');
+    final saved = devices.devices.single;
+    expect(saved.connection, const IrConnection(codeId: 'gree_ybofb'));
+    expect(saved.kind, DeviceKind.airConditioner);
+    expect(saved.name, 'Gree AC');
+    expect(saved.room, 'Bedroom');
     // The remote screen is open, with the AC off after the verify step.
     expect(find.text('OFF'), findsOneWidget);
     expect(find.text('Turn on'), findsOneWidget);
@@ -92,8 +108,7 @@ void main() {
 
   testWidgets('auto search advances by itself until the user answers', (tester) async {
     await pumpApp(tester, build());
-    await tester.tap(find.text('Find my AC'));
-    await tester.pumpAndSettle();
+    await openFindMyAc(tester);
     await tester.tap(find.text("I don't know the brand"));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Start testing'));
@@ -114,7 +129,7 @@ void main() {
 
   testWidgets('remote: power, temperature debounce and mode', (tester) async {
     const device = AcDevice(id: 'x', name: 'Living AC', brandName: 'Daikin', codeId: 'daikin', room: 'Living room');
-    final deps = build(initial: [device]);
+    final deps = build(initial: [device.toDevice()]);
     await pumpApp(tester, deps);
 
     expect(find.text('Living AC'), findsOneWidget);
@@ -138,7 +153,7 @@ void main() {
     await tester.tap(find.text('Heat'));
     await tester.pumpAndSettle();
     expect(transmitter.sent, hasLength(3));
-    expect(devices.devices.single.state, const AcState(mode: AcMode.heat, temperature: 27));
+    expect(acState(devices.devices.single), const AcState(mode: AcMode.heat, temperature: 27));
 
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -152,7 +167,7 @@ void main() {
 
   testWidgets('home shows a banner and an error when the phone has no IR blaster', (tester) async {
     const device = AcDevice(id: 'x', name: 'AC', brandName: 'Midea', codeId: 'midea');
-    final deps = build(initial: [device]);
+    final deps = build(initial: [device.toDevice()]);
     transmitter
       ..hasEmitter = false
       ..failWithCode = 'NO_IR_EMITTER';
@@ -162,7 +177,84 @@ void main() {
     await tester.tap(find.byTooltip('Turn on'));
     await tester.pumpAndSettle();
     expect(find.textContaining('no IR blaster'), findsOneWidget);
-    expect(devices.devices.single.state.isPowerOn, isFalse);
+    expect(acState(devices.devices.single).isPowerOn, isFalse);
+  });
+
+  testWidgets('a camera shortcut opens the maker\'s app, or offers to install it', (tester) async {
+    await pumpApp(tester, build(installedApps: {'com.xiaomi.smarthome'}));
+    await tester.tap(find.text('Add a device'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Camera'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Shortcut to the maker's app"));
+    await tester.pumpAndSettle();
+
+    // The installed app is preselected and names the device.
+    expect(find.text('Installed'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Xiaomi Home camera'), findsOneWidget);
+    final setupList = find.descendant(of: find.byType(ListView).last, matching: find.byType(Scrollable)).first;
+    await tester.scrollUntilVisible(find.text('Add shortcut'), 200, scrollable: setupList);
+    await tester.tap(find.text('Garage'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add shortcut'));
+    await tester.pumpAndSettle();
+
+    final saved = devices.devices.single;
+    expect(saved.kind, DeviceKind.camera);
+    expect(saved.connection, const AppLinkConnection(packageName: 'com.xiaomi.smarthome', appName: 'Xiaomi Home'));
+    // Adding a shortcut stays in this app; the card opens the maker's app.
+    expect(launcher.launched, isEmpty);
+
+    // Back home: a camera section with the shortcut card.
+    expect(find.text('CAMERAS'), findsOneWidget);
+    expect(find.text('Garage · Opens Xiaomi Home'), findsOneWidget);
+    expect(find.byTooltip('Turn on'), findsNothing);
+    await tester.tap(find.text('Xiaomi Home camera'));
+    await tester.pumpAndSettle();
+    expect(launcher.launched, ['com.xiaomi.smarthome']);
+
+    // Uninstalled: the card offers the store page instead.
+    launcher.installed.clear();
+    await tester.tap(find.text('Xiaomi Home camera'));
+    await tester.pumpAndSettle();
+    expect(find.text('Xiaomi Home is not installed on this phone.'), findsOneWidget);
+    await tester.tap(find.text('Install'));
+    expect(launcher.storePages, ['com.xiaomi.smarthome']);
+  });
+
+  testWidgets('kinds without an integration yet show how to set them up', (tester) async {
+    await pumpApp(tester, build());
+    await tester.tap(find.text('Add a device'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Motorbike'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add it'.toUpperCase()), findsNothing);
+  });
+
+  testWidgets('long-press renames or removes any device', (tester) async {
+    const camera = Device(
+      id: 'c',
+      name: 'Gate',
+      kind: DeviceKind.camera,
+      connection: AppLinkConnection(packageName: 'com.ezviz', appName: 'EZVIZ'),
+    );
+    await pumpApp(tester, build(initial: [camera]));
+
+    await tester.longPress(find.text('Gate'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rename'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Front gate');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(devices.devices.single.name, 'Front gate');
+
+    await tester.longPress(find.text('Front gate'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    expect(devices.devices, isEmpty);
+    expect(find.text('Control everything at home'), findsOneWidget);
   });
 
   testWidgets('diagnostics sends the Samsung32 TV power preset', (tester) async {

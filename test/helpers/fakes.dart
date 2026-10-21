@@ -1,10 +1,11 @@
 import 'package:flutter/services.dart';
 import 'package:universal_remote/domain/models/ac_brand.dart';
-import 'package:universal_remote/domain/models/ac_device.dart';
+import 'package:universal_remote/domain/devices/device.dart';
 import 'package:universal_remote/domain/models/carrier_frequency_range.dart';
 import 'package:universal_remote/domain/models/ir_packet.dart';
 import 'package:universal_remote/domain/repositories/ac_brand_repository.dart';
-import 'package:universal_remote/domain/repositories/ac_device_repository.dart';
+import 'package:universal_remote/domain/repositories/device_repository.dart';
+import 'package:universal_remote/domain/services/app_launcher.dart';
 import 'package:universal_remote/domain/services/ir_transmitter.dart';
 
 /// Records every packet instead of emitting it.
@@ -51,16 +52,16 @@ class FakeTransmitter implements IrTransmitter {
   }
 }
 
-class InMemoryAcDeviceRepository implements AcDeviceRepository {
-  InMemoryAcDeviceRepository([List<AcDevice> initial = const []]) : devices = [...initial];
+class InMemoryDeviceRepository implements DeviceRepository {
+  InMemoryDeviceRepository([List<Device> initial = const []]) : devices = [...initial];
 
-  final List<AcDevice> devices;
-
-  @override
-  Future<List<AcDevice>> getAll() async => List.unmodifiable(devices);
+  final List<Device> devices;
 
   @override
-  Future<void> save(AcDevice device) async {
+  Future<List<Device>> getAll() async => List.unmodifiable(devices);
+
+  @override
+  Future<void> save(Device device) async {
     final index = devices.indexWhere((d) => d.id == device.id);
     if (index >= 0) {
       devices[index] = device;
@@ -70,7 +71,7 @@ class InMemoryAcDeviceRepository implements AcDeviceRepository {
   }
 
   @override
-  Future<AcDevice?> update(String id, AcDevice Function(AcDevice current) change) async {
+  Future<Device?> update(String id, Device Function(Device current) change) async {
     final index = devices.indexWhere((d) => d.id == id);
     if (index < 0) return null;
     return devices[index] = change(devices[index]);
@@ -78,6 +79,28 @@ class InMemoryAcDeviceRepository implements AcDeviceRepository {
 
   @override
   Future<void> delete(String id) async => devices.removeWhere((d) => d.id == id);
+}
+
+/// Pretends the packages in [installed] are installed; records what was opened.
+class FakeAppLauncher implements AppLauncher {
+  FakeAppLauncher({Set<String>? installed}) : installed = installed ?? {};
+
+  final Set<String> installed;
+  final List<String> launched = [];
+  final List<String> storePages = [];
+
+  @override
+  Future<bool> isInstalled(String packageName) async => installed.contains(packageName);
+
+  @override
+  Future<bool> launch(String packageName) async {
+    if (!installed.contains(packageName)) return false;
+    launched.add(packageName);
+    return true;
+  }
+
+  @override
+  Future<void> openStorePage(String packageName) async => storePages.add(packageName);
 }
 
 class FakeAcBrandRepository implements AcBrandRepository {

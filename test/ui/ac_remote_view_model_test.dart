@@ -17,12 +17,12 @@ void main() {
   const midea = AcDevice(id: 'm', name: 'Living AC', brandName: 'Midea', codeId: 'midea', state: AcState());
 
   late FakeTransmitter transmitter;
-  late InMemoryAcDeviceRepository repository;
+  late InMemoryDeviceRepository repository;
   late AcRemoteViewModel vm;
 
   setUp(() {
     transmitter = FakeTransmitter();
-    repository = InMemoryAcDeviceRepository([midea]);
+    repository = InMemoryDeviceRepository([midea.toDevice()]);
     final registry = createStandardAcRegistry();
     final queue = AcSendQueue(
       registry: registry,
@@ -75,7 +75,7 @@ void main() {
     expect(transmitter.sent, hasLength(2));
     expect(vm.sentCount, 2);
     expect(vm.state.mode, AcMode.fan);
-    expect(repository.devices.single.state.mode, AcMode.fan);
+    expect((repository.devices.single.state! as AcState).mode, AcMode.fan);
   });
 
   test('renaming during a send keeps both the name and the delivered state', () async {
@@ -87,7 +87,7 @@ void main() {
 
     final stored = repository.devices.single;
     expect(stored.name, 'Bedroom AC');
-    expect(stored.state.turbo, isTrue);
+    expect((stored.state! as AcState).turbo, isTrue);
   });
 
   test('a failed send shows an error and the next successful one clears it', () async {
@@ -95,7 +95,7 @@ void main() {
     vm.toggleSwingVertical();
     await pumpEventQueue();
     expect(vm.error, contains('no IR blaster'));
-    expect(repository.devices.single.state.swingVertical, isFalse);
+    expect((repository.devices.single.state! as AcState).swingVertical, isFalse);
 
     transmitter.failWithCode = null;
     await vm.resend();

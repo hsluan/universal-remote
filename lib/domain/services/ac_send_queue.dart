@@ -5,7 +5,7 @@ import '../encoders/ac/ac_encoder_registry.dart';
 import '../encoders/ac/ac_protocol_encoder.dart';
 import '../models/ac_device.dart';
 import '../models/ac_state.dart';
-import '../repositories/ac_device_repository.dart';
+import '../repositories/device_repository.dart';
 import '../use_cases/transmit_ac_state_use_case.dart';
 
 /// Outcome of [AcSendQueue.send].
@@ -40,7 +40,7 @@ class AcSendQueue {
 
   final AcEncoderRegistry registry;
   final TransmitAcStateUseCase transmitAcState;
-  final AcDeviceRepository repository;
+  final DeviceRepository repository;
 
   final Map<String, _Lane> _lanes = {};
   final Queue<_Lane> _ready = Queue<_Lane>();

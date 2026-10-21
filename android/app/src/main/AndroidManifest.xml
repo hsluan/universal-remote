@@ -45,5 +45,18 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Makers' apps the app links devices to (lib/domain/devices/vendor_apps.dart):
+             Android 11+ hides other packages unless they are listed here. -->
+        <package android:name="com.xiaomi.smarthome"/>
+        <package android:name="com.tplink.iot"/>
+        <package android:name="com.ezviz"/>
+        <package android:name="com.tuya.smartlife"/>
+        <package android:name="com.coolkit"/>
+        <package android:name="com.yeelight.cherry"/>
+        <!-- Store page fallback for apps that are not installed. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="market"/>
+        </intent>
     </queries>
 </manifest>

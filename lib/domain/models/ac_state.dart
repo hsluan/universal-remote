@@ -1,3 +1,5 @@
+import '../devices/device_state.dart';
+
 enum AcMode { auto, cool, dry, fan, heat }
 
 enum AcFanSpeed { auto, low, medium, high }
@@ -6,7 +8,7 @@ enum AcFanSpeed { auto, low, medium, high }
 ///
 /// AC remotes are stateful: every button press re-sends the whole state, so the
 /// app keeps the last state per device and sends a new copy on each change.
-class AcState {
+class AcState implements DeviceState {
   const AcState({
     this.isPowerOn = true,
     this.mode = AcMode.cool,
@@ -53,7 +55,8 @@ class AcState {
     );
   }
 
-  Map<String, Object> toJson() => {
+  @override
+  Map<String, Object?> toJson() => {
         'power': isPowerOn,
         'mode': mode.name,
         'temperature': temperature,

@@ -7,7 +7,7 @@ import '../../../../domain/encoders/ac/ac_encoder_registry.dart';
 import '../../../../domain/encoders/ac/ac_protocol_encoder.dart';
 import '../../../../domain/models/ac_device.dart';
 import '../../../../domain/models/ac_state.dart';
-import '../../../../domain/repositories/ac_device_repository.dart';
+import '../../../../domain/repositories/device_repository.dart';
 import '../../../../domain/services/ac_send_queue.dart';
 import '../../../core/transmit_error.dart';
 
@@ -23,7 +23,7 @@ class AcRemoteViewModel extends ChangeNotifier {
     _state = encoder.capabilities.normalize(sendQueue.deliveredState(device));
   }
 
-  final AcDeviceRepository repository;
+  final DeviceRepository repository;
 
   /// Delivers states and tracks what the AC received; it also saves the delivered state.
   final AcSendQueue sendQueue;
